@@ -9,7 +9,7 @@ library(tidyr)
 library(RColorBrewer)
 
 # Read the CSV file
-read_ae_data <-   function(file_path) {
+read_ae_data <-  function(file_path) {
   read_csv(file_path)
 }
 
@@ -18,7 +18,7 @@ count_ae_occurrences <- function(adae) {
     count(USUBJID, AEDECOD)
 }
 
-calculate_ae_cooccurrence <-   function(ae_data) {
+calculate_ae_cooccurrence <-  function(ae_data) {
   required_cols <- c("USUBJID", "AEDECOD")
   if (!all(required_cols %in% names(ae_data))) {
     stop("Data must contain USUBJID and AEDECOD columns")
@@ -35,7 +35,7 @@ calculate_ae_cooccurrence <-   function(ae_data) {
       subjects_y <-  ae_data %>% filter(AEDECOD == .y) %>% pull(USUBJID)
       intersect(subjects_x, subjects_y)
     }),
-    n = map_dbl(USUBJID, length)) # Calculate n after getting USUBJID
+    n = map_dbl(USUBJID, length))
   
   result %>%
     arrange(AEDECOD1, AEDECOD2)
@@ -115,22 +115,26 @@ create_patient_profile_plot <- function(data, selected_aes) {
       legendgroup = ~AEDECOD
     ) %>%
     layout(
-      title = "Patient Profile: Adverse Event Timeline",
-      xaxis = list(title = "Study Day"),
-      yaxis = list(title = "Subject ID"),
+      title = list(
+        text = "Patient Profile: Adverse Event Timeline",
+        font = list(size = 24)
+      ),
+      xaxis = list(title = list(text = "Study Day", font = list(size = 18))),
+      yaxis = list(title = list(text = "Subject ID", font = list(size = 18))),
       showlegend = TRUE,
       legend = list(
-        title = list(text = if (!is.null(selected_aes)) "Selected AEs" else "Adverse Events"),
+        title = list(text = if (!is.null(selected_aes)) "Selected AEs" else "Adverse Events", font = list(size = 18)),
+        font = list(size = 14),
         traceorder = "normal"
-      )
+      ),
+      font = list(size = 14)
     )
   
   return(plot)
 }
 
 # Load raw AE dataset
-adae <- read_ae_data("202502/DummyAEData.csv")
-# adae <-  read_ae_data("DummyAEData.csv")
+adae <-  read_ae_data("DummyAEData.csv")
 
 # Ensure AEDECOD is character to avoid factor mismatches
 adae <- adae %>% mutate(AEDECOD = as.character(AEDECOD))
@@ -144,19 +148,57 @@ ae_cooccurrence <- ae_cooccurrence %>%
   mutate(AEDECOD1 = as.character(AEDECOD1),
          AEDECOD2 = as.character(AEDECOD2))
 
-ui <-  page_fillable(
-  title="AE Co-occurrence Analysis",
-  card(
-    plotlyOutput(outputId = "heatmap"),
-    plotlyOutput(outputId = "patient_profile_plot")
+ui <-  fluidPage(
+  tags$head(
+    tags$style(HTML("
+      .chart-container {
+        position: relative;
+        width: 100%;
+      }
+      .chart-content {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+      }
+    ")),
+    tags$script(HTML("
+      $(document).on('shiny:connected', function() {
+        function resizeCharts() {
+          $('.chart-container').each(function() {
+            var width = $(this).width();
+            $(this).css('height', (width * 0.8) + 'px');
+          });
+        }
+        $(window).resize(resizeCharts);
+        resizeCharts();
+      });
+    "))
+  ),
+  fluidRow(
+    column(6,
+      div(class = "chart-container",
+        div(class = "chart-content",
+          plotlyOutput("heatmap", height = "100%", width = "100%")
+        )
+      )
+    ),
+    column(6,
+      div(class = "chart-container",
+        div(class = "chart-content",
+          plotlyOutput("patient_profile_plot", height = "100%", width = "100%")
+        )
+      )
+    )
   )
 )
 
-server <-  function(input, output, session) {
+server <- function(input, output, session) {
   selected_aes <- reactiveVal(NULL)
   
   output$heatmap <- renderPlotly({
-    data <- ae_cooccurrence |> select(-USUBJID)
+    data <- ae_cooccurrence %>% select(-USUBJID)
     
     data <-  data %>%
       mutate(n = ifelse(AEDECOD1 == AEDECOD2, NA, n))
@@ -178,7 +220,6 @@ server <-  function(input, output, session) {
       nrow = length(labels)
     )
     
-    # Create a matrix for cell borders
     border_matrix <-  matrix("", nrow = nrow(ae_matrix), ncol = ncol(ae_matrix))
     if (!is.null(selected) && length(selected) == 2) {
       row_index <- which(labels == selected[1])
@@ -193,15 +234,17 @@ server <-  function(input, output, session) {
       z = ae_matrix, 
       type = "heatmap",
       colorscale = create_plotly_colorscale(),
-      colorbar = list(title = "Co-occurrence Count"),
+      colorbar = list(title = "Co-occurrence Count", titlefont = list(size = 18), tickfont = list(size = 14)),
       source = "heatmap_click",
       hoverinfo = "text",
       text = hover_text
     ) %>%
       layout(
-        title = "AE Co-occurrence Heatmap",
-        xaxis = list(title = "Adverse Event 1"),
-        yaxis = list(title = "Adverse Event 2")
+        title = list(text = "AE Co-occurrence Heatmap", font = list(size = 24)),
+        xaxis = list(title = list(text = "Adverse Event 1", font = list(size = 18)), tickfont = list(size = 12)),
+        yaxis = list(title = list(text = "Adverse Event 2", font = list(size = 18)), tickfont = list(size = 12)),
+        autosize = TRUE,
+        margin = list(l = 80, r = 80, b = 80, t = 100, pad = 4)
       ) %>%
       event_register("plotly_click") %>%
       add_annotations(
@@ -213,7 +256,8 @@ server <-  function(input, output, session) {
         yref = "y",
         bordercolor = as.vector(border_matrix),
         borderwidth = 2
-      )
+      ) %>%
+      config(responsive = TRUE)
   })
   
   observeEvent(event_data("plotly_click", source = "heatmap_click"), {
@@ -246,8 +290,15 @@ server <-  function(input, output, session) {
     }
   })
 
-  output$patient_profile_plot <- renderPlotly({
-    create_patient_profile_plot(filtered_data(), selected_aes())
+  output$patient_profile_plot <-  renderPlotly({
+    plot <- create_patient_profile_plot(filtered_data(), selected_aes())
+    
+    plot %>%
+      layout(
+        autosize = TRUE,
+        margin = list(l = 80, r = 80, b = 80, t = 100, pad = 4)
+      ) %>%
+      config(responsive = TRUE)
   })
 }
 
