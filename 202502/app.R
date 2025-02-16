@@ -50,6 +50,14 @@ create_plotly_colorscale <-  function() {
   )
 }
 
+# Function to create a consistent color scale for AE categories
+create_ae_color_mapping <- function(ae_list) {
+  n_colors <- length(ae_list)
+  color_palette <- brewer.pal(min(n_colors, 9), "YlOrRd")  # Use 'YlOrRd' from RColorBrewer
+  color_mapping <- setNames(rep(color_palette, length.out = n_colors), ae_list)
+  return(color_mapping)
+}
+
 create_patient_profile_plot <- function(data, selected_aes) {
   if (nrow(data) == 0) {
     return(plot_ly() %>% layout(title = "No data available"))
@@ -68,17 +76,24 @@ create_patient_profile_plot <- function(data, selected_aes) {
     ) %>%
     ungroup()
 
-  # Determine the first occurrence of AE per subject and reverse the order
+  # Determine the first occurrence of AE per subject
   subject_order <- data_grouped %>%
     group_by(USUBJID) %>%
     summarise(Earliest_ASTDY = min(ASTDY)) %>%
     arrange(Earliest_ASTDY) %>%
-    pull(USUBJID) %>%
-    rev()  # Reverse the order
+    pull(USUBJID)
 
-  # Reorder USUBJID as a factor based on the reversed order
+  # Reorder USUBJID as a factor based on first AE occurrence
   data_grouped <- data_grouped %>%
     mutate(USUBJID = factor(USUBJID, levels = subject_order))
+
+  # Create fixed color mapping for AEDECOD
+  unique_aes <- unique(data_grouped$AEDECOD)
+  ae_color_map <- create_ae_color_mapping(unique_aes)
+
+  # Assign fixed colors to AEDECOD
+  data_grouped <- data_grouped %>%
+    mutate(AE_Color = I(ae_color_map[AEDECOD]))  # Use I() to set fixed colors
 
   # Create hover text
   hover_text <- with(data_grouped, paste(
@@ -101,7 +116,7 @@ create_patient_profile_plot <- function(data, selected_aes) {
       xend = ~AENDY,
       y = ~USUBJID,
       yend = ~USUBJID,
-      color = ~AEDECOD,
+      color = ~AE_Color,  # Apply fixed colors
       hoverinfo = "text",
       text = hover_text,
       showlegend = FALSE
@@ -110,7 +125,7 @@ create_patient_profile_plot <- function(data, selected_aes) {
       data = data_grouped,
       x = ~ASTDY,
       y = ~USUBJID,
-      color = ~AEDECOD,
+      color = ~AE_Color,  # Apply fixed colors
       marker = list(size = 8),
       hoverinfo = "text",
       text = hover_text,
@@ -121,7 +136,7 @@ create_patient_profile_plot <- function(data, selected_aes) {
       data = data_grouped,
       x = ~AENDY,
       y = ~USUBJID,
-      color = ~AEDECOD,
+      color = ~AE_Color,  # Apply fixed colors
       marker = list(size = 8),
       hoverinfo = "text",
       text = hover_text,
@@ -137,7 +152,7 @@ create_patient_profile_plot <- function(data, selected_aes) {
       yaxis = list(
         title = list(text = "Subject ID", font = list(size = 18)),
         categoryorder = "array",
-        categoryarray = subject_order  # Apply reversed order to the y-axis
+        categoryarray = subject_order  # Ensure correct y-axis order
       ),
       showlegend = TRUE,
       legend = list(
