@@ -68,14 +68,15 @@ create_patient_profile_plot <- function(data, selected_aes) {
     ) %>%
     ungroup()
 
-  # Determine the first occurrence of AE per subject
+  # Determine the first occurrence of AE per subject and reverse the order
   subject_order <- data_grouped %>%
     group_by(USUBJID) %>%
     summarise(Earliest_ASTDY = min(ASTDY)) %>%
     arrange(Earliest_ASTDY) %>%
-    pull(USUBJID)
+    pull(USUBJID) %>%
+    rev()  # Reverse the order
 
-  # Reorder USUBJID as a factor based on first AE occurrence
+  # Reorder USUBJID as a factor based on the reversed order
   data_grouped <- data_grouped %>%
     mutate(USUBJID = factor(USUBJID, levels = subject_order))
 
@@ -136,7 +137,7 @@ create_patient_profile_plot <- function(data, selected_aes) {
       yaxis = list(
         title = list(text = "Subject ID", font = list(size = 18)),
         categoryorder = "array",
-        categoryarray = subject_order  # Ensure correct y-axis order
+        categoryarray = subject_order  # Apply reversed order to the y-axis
       ),
       showlegend = TRUE,
       legend = list(
@@ -149,7 +150,6 @@ create_patient_profile_plot <- function(data, selected_aes) {
 
   return(plot)
 }
-
 
 # Load raw AE dataset
 adae <-  read_ae_data("DummyAEData.csv")
