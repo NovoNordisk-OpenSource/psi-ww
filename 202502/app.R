@@ -79,46 +79,53 @@ ae_cooccurrence <- ae_cooccurrence %>%
 global_ae_colors <-  create_global_ae_color_mapping(adae)
 
 ui <- fluidPage(
+  theme = bs_theme(version = 4, bootswatch = "flatly"),
   tags$head(
     tags$style(HTML("
-      .chart-container {
-        position: relative;
-        width: 100%;
+      html, body {
+        height: 100%;
       }
-      .chart-content {
-        position: absolute;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
+      .container-fluid {
+        height: calc(100vh - 20px);
+        padding: 10px;
+      }
+      .row {
+        height: 100%;
+      }
+      .col-md-6 {
+        height: 100%;
+      }
+      .chart-container {
+        height: 100%;
+        width: 100%;
       }
     ")),
     tags$script(HTML("
       $(document).on('shiny:connected', function() {
-        function resizeCharts() {
-          $('.chart-container').each(function() {
-            var width = $(this).width();
-            $(this).css('height', (width * 0.8) + 'px');
+        function resizePlots() {
+          Plotly.relayout('heatmap', {
+            width: $('#heatmap').width(),
+            height: $('#heatmap').height()
+          });
+          Plotly.relayout('patient_profile_plot', {
+            width: $('#patient_profile_plot').width(),
+            height: $('#patient_profile_plot').height()
           });
         }
-        $(window).resize(resizeCharts);
-        resizeCharts();
+        $(window).resize(resizePlots);
+        setTimeout(resizePlots, 100);
       });
     "))
   ),
   fluidRow(
     column(6,
            div(class = "chart-container",
-               div(class = "chart-content",
-                   plotlyOutput("heatmap", height = "100%", width = "100%")
-               )
+               plotlyOutput("heatmap", height = "100%", width = "100%")
            )
     ),
     column(6,
            div(class = "chart-container",
-               div(class = "chart-content",
-                   plotlyOutput("patient_profile_plot", height = "100%", width = "100%")
-               )
+               plotlyOutput("patient_profile_plot", height = "100%", width = "100%")
            )
     )
   )
@@ -164,17 +171,16 @@ server <- function(input, output, session) {
       z = ae_matrix,
       type = "heatmap",
       colorscale = create_plotly_colorscale(),
-      colorbar = list(title = "Co-occurrence Count", titlefont = list(size = 18), tickfont = list(size = 14)),
+      colorbar = list(title = "Co-occurrence Count", titlefont = list(size = 14), tickfont = list(size = 12)),
       source = "heatmap_click",
       hoverinfo = "text",
       text = hover_text
     ) %>%
       layout(
-        title = list(text = "AE Co-occurrence Heatmap", font = list(size = 24)),
-        xaxis = list(title = list(text = "Adverse Event 1", font = list(size = 18)), tickfont = list(size = 12)),
-        yaxis = list(title = list(text = "Adverse Event 2", font = list(size = 18)), tickfont = list(size = 12)),
-        autosize = TRUE,
-        margin = list(l = 80, r = 80, b = 80, t = 100, pad = 4)
+        title = list(text = "AE Co-occurrence Heatmap", font = list(size = 18)),
+        xaxis = list(title = list(text = "Adverse Event 1", font = list(size = 14)), tickfont = list(size = 10)),
+        yaxis = list(title = list(text = "Adverse Event 2", font = list(size = 14)), tickfont = list(size = 10)),
+        margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4)
       ) %>%
       event_register("plotly_click") %>%
       add_annotations(
@@ -239,21 +245,17 @@ server <- function(input, output, session) {
       ) %>%
       ungroup()
     
-    # Determine the first occurrence of AE per subject
     subject_order <-  data_grouped %>%
       group_by(USUBJID) %>%
       summarise(Earliest_ASTDY = min(ASTDY), .groups = "drop") %>%
       arrange(Earliest_ASTDY) %>%
       pull(USUBJID)
     
-    # Reorder USUBJID as a factor based on first AE occurrence
     data_grouped <-  data_grouped %>%
       mutate(USUBJID = factor(USUBJID, levels = subject_order))
     
-    # Use the global color mapping
     ae_color_map <-  global_ae_colors$mapping
     
-    # Create hover text
     hover_text <- with(data_grouped, paste(
       "Subject ID: ", USUBJID,
       "<br>AE: ", AEDECOD,
@@ -266,7 +268,6 @@ server <- function(input, output, session) {
       "<br>Outcome: ", AEOUT
     ))
     
-    # Create plot
     plot <-  plot_ly() %>%
       add_segments(
         data = data_grouped,
@@ -286,7 +287,7 @@ server <- function(input, output, session) {
         y = ~USUBJID,
         color = ~AEDECOD,
         colors = ae_color_map,
-        marker = list(size = 8),
+        marker = list(size = 6),
         hoverinfo = "text",
         text = hover_text,
         name = ~AEDECOD,
@@ -298,7 +299,7 @@ server <- function(input, output, session) {
         y = ~USUBJID,
         color = ~AEDECOD,
         colors = ae_color_map,
-        marker = list(size = 8),
+        marker = list(size = 6),
         hoverinfo = "text",
         text = hover_text,
         showlegend = FALSE,
@@ -307,21 +308,22 @@ server <- function(input, output, session) {
       layout(
         title = list(
           text = "Patient Profile: Adverse Event Timeline",
-          font = list(size = 24)
+          font = list(size = 18)
         ),
-        xaxis = list(title = list(text = "Study Day", font = list(size = 18))),
+        xaxis = list(title = list(text = "Study Day", font = list(size = 14))),
         yaxis = list(
-          title = list(text = "Subject ID", font = list(size = 18)),
+          title = list(text = "Subject ID", font = list(size = 14)),
           categoryorder = "array",
           categoryarray = subject_order
         ),
         showlegend = TRUE,
         legend = list(
-          title = list(text = if (!is.null(selected_aes)) "Selected AEs" else "Adverse Events", font = list(size = 18)),
-          font = list(size = 14),
+          title = list(text = if (!is.null(selected_aes)) "Selected AEs" else "Adverse Events", font = list(size = 14)),
+          font = list(size = 12),
           traceorder = "normal"
         ),
-        font = list(size = 14)
+        font = list(size = 12),
+        margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4)
       )
     
     return(plot)
@@ -329,13 +331,7 @@ server <- function(input, output, session) {
   
   output$patient_profile_plot <-  renderPlotly({
     plot <- create_patient_profile_plot(filtered_data(), selected_aes())
-    
-    plot %>%
-      layout(
-        autosize = TRUE,
-        margin = list(l = 80, r = 80, b = 80, t = 100, pad = 4)
-      ) %>%
-      config(responsive = TRUE)
+    plot %>% config(responsive = TRUE)
   })
 }
 
