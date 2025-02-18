@@ -9,16 +9,18 @@ library(tidyr)
 library(RColorBrewer)
 
 # Read the CSV file
-read_ae_data <-  function(file_path) {
+read_ae_data <- function(file_path) {
   read_csv(file_path)
 }
 
+# Count AE occurrences per subject
 count_ae_occurrences <- function(adae) {
   adae %>%
     count(USUBJID, AEDECOD)
 }
 
-calculate_ae_cooccurrence <-  function(ae_data) {
+# Calculate AE co-occurrences
+calculate_ae_cooccurrence <- function(ae_data) {
   required_cols <- c("USUBJID", "AEDECOD")
   if (!all(required_cols %in% names(ae_data))) {
     stop("Data must contain USUBJID and AEDECOD columns")
@@ -31,8 +33,8 @@ calculate_ae_cooccurrence <-  function(ae_data) {
     as_tibble() %>%
     mutate(USUBJID = map2(AEDECOD1, AEDECOD2, ~{
       if (.x == .y) return(character(0))
-      subjects_x <-  ae_data %>% filter(AEDECOD == .x) %>% pull(USUBJID)
-      subjects_y <-  ae_data %>% filter(AEDECOD == .y) %>% pull(USUBJID)
+      subjects_x <- ae_data %>% filter(AEDECOD == .x) %>% pull(USUBJID)
+      subjects_y <- ae_data %>% filter(AEDECOD == .y) %>% pull(USUBJID)
       intersect(subjects_x, subjects_y)
     }),
     n = map_dbl(USUBJID, length))
@@ -41,7 +43,8 @@ calculate_ae_cooccurrence <-  function(ae_data) {
     arrange(AEDECOD1, AEDECOD2)
 }
 
-create_plotly_colorscale <-  function() {
+# Create color scale for the heatmap
+create_plotly_colorscale <- function() {
   ylord_colors <- brewer.pal(9, "YlOrRd")
   n <- length(ylord_colors)
   data.frame(
@@ -50,6 +53,7 @@ create_plotly_colorscale <-  function() {
   )
 }
 
+# Create global color mapping for AEs
 create_global_ae_color_mapping <- function(data) {
   unique_aes <- unique(data$AEDECOD)
   n_colors <- length(unique_aes)
@@ -60,6 +64,110 @@ create_global_ae_color_mapping <- function(data) {
   return(list(mapping = color_mapping, palette = color_palette))
 }
 
+# Create patient profile plot
+create_patient_profile_plot <- function(data, selected_aes) {
+  if (nrow(data) == 0) {
+    return(plot_ly() %>% layout(title = "No data available"))
+  }
+  
+  data_grouped <- data %>%
+    group_by(USUBJID, AEDECOD) %>%
+    summarise(
+      ASTDY = min(ASTDY),
+      AENDY = max(AENDY),
+      AESEV = paste(unique(AESEV), collapse = ", "),
+      AESER = paste(unique(AESER), collapse = ", "),
+      AEACN = paste(unique(AEACN), collapse = ", "),
+      AEREL = paste(unique(AEREL), collapse = ", "),
+      AEOUT = paste(unique(AEOUT), collapse = ", "),
+      .groups = "drop"
+    ) %>%
+    ungroup()
+  
+  subject_order <- data_grouped %>%
+    group_by(USUBJID) %>%
+    summarise(Earliest_ASTDY = min(ASTDY), .groups = "drop") %>%
+    arrange(Earliest_ASTDY) %>%
+    pull(USUBJID)
+  
+  data_grouped <- data_grouped %>%
+    mutate(USUBJID = factor(USUBJID, levels = subject_order))
+  
+  ae_color_map <- global_ae_colors$mapping
+  
+  hover_text <- with(data_grouped, paste(
+    "Subject ID: ", USUBJID,
+    "<br>AE: ", AEDECOD,
+    "<br>Start Day: ", ASTDY,
+    "<br>End Day: ", AENDY,
+    "<br>Severity: ", AESEV,
+    "<br>Serious: ", AESER,
+    "<br>Action Taken: ", AEACN,
+    "<br>Relationship: ", AEREL,
+    "<br>Outcome: ", AEOUT
+  ))
+  
+  plot <- plot_ly() %>%
+    add_segments(
+      data = data_grouped,
+      x = ~ASTDY,
+      xend = ~AENDY,
+      y = ~USUBJID,
+      yend = ~USUBJID,
+      color = ~AEDECOD,
+      colors = ae_color_map,
+      hoverinfo = "text",
+      text = hover_text,
+      showlegend = FALSE
+    ) %>%
+    add_markers(
+      data = data_grouped,
+      x = ~ASTDY,
+      y = ~USUBJID,
+      color = ~AEDECOD,
+      colors = ae_color_map,
+      marker = list(size = 6),
+      hoverinfo = "text",
+      text = hover_text,
+      name = ~AEDECOD,
+      legendgroup = ~AEDECOD
+    ) %>%
+    add_markers(
+      data = data_grouped,
+      x = ~AENDY,
+      y = ~USUBJID,
+      color = ~AEDECOD,
+      colors = ae_color_map,
+      marker = list(size = 6),
+      hoverinfo = "text",
+      text = hover_text,
+      showlegend = FALSE,
+      legendgroup = ~AEDECOD
+    ) %>%
+    layout(
+      title = list(
+        text = "Patient Profile: Adverse Event Timeline",
+        font = list(size = 18)
+      ),
+      xaxis = list(title = list(text = "Study Day", font = list(size = 14))),
+      yaxis = list(
+        title = list(text = "Subject ID", font = list(size = 14)),
+        categoryorder = "array",
+        categoryarray = subject_order
+      ),
+      showlegend = TRUE,
+      legend = list(
+        title = list(text = if (!is.null(selected_aes)) "Selected AEs" else "Adverse Events", font = list(size = 14)),
+        font = list(size = 12),
+        traceorder = "normal"
+      ),
+      font = list(size = 12),
+      margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4)
+    )
+  
+  return(plot)
+}
+
 # Load raw AE dataset
 adae <- read_ae_data("DummyAEData.csv")
 
@@ -67,7 +175,7 @@ adae <- read_ae_data("DummyAEData.csv")
 adae <- adae %>% mutate(AEDECOD = as.character(AEDECOD))
 
 # Compute AE counts and co-occurrence matrix
-ae_counts <-  count_ae_occurrences(adae)
+ae_counts <- count_ae_occurrences(adae)
 ae_cooccurrence <- calculate_ae_cooccurrence(ae_counts)
 
 # Ensure AEDECOD columns in ae_cooccurrence are also character
@@ -76,8 +184,9 @@ ae_cooccurrence <- ae_cooccurrence %>%
          AEDECOD2 = as.character(AEDECOD2))
 
 # Create global color mapping
-global_ae_colors <-  create_global_ae_color_mapping(adae)
+global_ae_colors <- create_global_ae_color_mapping(adae)
 
+# UI Definition
 ui <- fluidPage(
   theme = bs_theme(version = 4, bootswatch = "flatly"),
   tags$head(
@@ -98,20 +207,39 @@ ui <- fluidPage(
       .chart-container {
         height: 100%;
         width: 100%;
+        position: relative;
+      }
+      #heatmap-container {
+        aspect-ratio: 1;
+        width: 100%;
+        max-height: 100%;
+        margin: auto;
+      }
+      #patient-profile-container {
+        height: 100%;
+        width: 100%;
       }
     ")),
     tags$script(HTML("
       $(document).on('shiny:connected', function() {
         function resizePlots() {
+          const heatmapContainer = document.getElementById('heatmap-container');
+          const containerWidth = heatmapContainer.offsetWidth;
+          const containerHeight = heatmapContainer.offsetHeight;
+          const size = Math.min(containerWidth, containerHeight);
+          
           Plotly.relayout('heatmap', {
-            width: $('#heatmap').width(),
-            height: $('#heatmap').height()
+            width: size,
+            height: size
           });
+          
+          const profileContainer = document.getElementById('patient-profile-container');
           Plotly.relayout('patient_profile_plot', {
-            width: $('#patient_profile_plot').width(),
-            height: $('#patient_profile_plot').height()
+            width: profileContainer.offsetWidth,
+            height: profileContainer.offsetHeight
           });
         }
+        
         $(window).resize(resizePlots);
         setTimeout(resizePlots, 100);
       });
@@ -120,30 +248,35 @@ ui <- fluidPage(
   fluidRow(
     column(6,
            div(class = "chart-container",
-               plotlyOutput("heatmap", height = "100%", width = "100%")
+               div(id = "heatmap-container",
+                   plotlyOutput("heatmap", height = "100%", width = "100%")
+               )
            )
     ),
     column(6,
            div(class = "chart-container",
-               plotlyOutput("patient_profile_plot", height = "100%", width = "100%")
+               div(id = "patient-profile-container",
+                   plotlyOutput("patient_profile_plot", height = "100%", width = "100%")
+               )
            )
     )
   )
 )
 
+# Server Definition
 server <- function(input, output, session) {
   selected_aes <- reactiveVal(NULL)
   
   output$heatmap <- renderPlotly({
     data <- ae_cooccurrence %>% select(-USUBJID)
     
-    data <-  data %>%
+    data <- data %>%
       mutate(n = ifelse(AEDECOD1 == AEDECOD2, NA, n))
     
-    ae_wide <-  data %>%
+    ae_wide <- data %>%
       pivot_wider(names_from = AEDECOD2, values_from = n, values_fill = list(n = NA))
     
-    labels <-  ae_wide$AEDECOD1
+    labels <- ae_wide$AEDECOD1
     ae_matrix <- as.matrix(ae_wide[, -1])
     
     selected <- selected_aes()
@@ -157,7 +290,7 @@ server <- function(input, output, session) {
       nrow = length(labels)
     )
     
-    border_matrix <-  matrix("", nrow = nrow(ae_matrix), ncol = ncol(ae_matrix))
+    border_matrix <- matrix("", nrow = nrow(ae_matrix), ncol = ncol(ae_matrix))
     if (!is.null(selected) && length(selected) == 2) {
       row_index <- which(labels == selected[1])
       col_index <- which(labels == selected[2])
@@ -178,8 +311,18 @@ server <- function(input, output, session) {
     ) %>%
       layout(
         title = list(text = "AE Co-occurrence Heatmap", font = list(size = 18)),
-        xaxis = list(title = list(text = "Adverse Event 1", font = list(size = 14)), tickfont = list(size = 10)),
-        yaxis = list(title = list(text = "Adverse Event 2", font = list(size = 14)), tickfont = list(size = 10)),
+        xaxis = list(
+          title = list(text = "Adverse Event 1", font = list(size = 14)),
+          tickfont = list(size = 10),
+          scaleanchor = "y",
+          scaleratio = 1
+        ),
+        yaxis = list(
+          title = list(text = "Adverse Event 2", font = list(size = 14)),
+          tickfont = list(size = 10),
+          scaleanchor = "x",
+          scaleratio = 1
+        ),
         margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4)
       ) %>%
       event_register("plotly_click") %>%
@@ -197,7 +340,7 @@ server <- function(input, output, session) {
   })
   
   observeEvent(event_data("plotly_click", source = "heatmap_click"), {
-    event <-  event_data("plotly_click", source = "heatmap_click")
+    event <- event_data("plotly_click", source = "heatmap_click")
     
     if (!is.null(event) && !is.null(event$x) && !is.null(event$y)) {
       ae1 <- as.character(event$x)
@@ -226,113 +369,11 @@ server <- function(input, output, session) {
     }
   })
   
-  create_patient_profile_plot <-  function(data, selected_aes) {
-    if (nrow(data) == 0) {
-      return(plot_ly() %>% layout(title = "No data available"))
-    }
-    
-    data_grouped <-  data %>%
-      group_by(USUBJID, AEDECOD) %>%
-      summarise(
-        ASTDY = min(ASTDY),
-        AENDY = max(AENDY),
-        AESEV = paste(unique(AESEV), collapse = ", "),
-        AESER = paste(unique(AESER), collapse = ", "),
-        AEACN = paste(unique(AEACN), collapse = ", "),
-        AEREL = paste(unique(AEREL), collapse = ", "),
-        AEOUT = paste(unique(AEOUT), collapse = ", "),
-        .groups = "drop"
-      ) %>%
-      ungroup()
-    
-    subject_order <-  data_grouped %>%
-      group_by(USUBJID) %>%
-      summarise(Earliest_ASTDY = min(ASTDY), .groups = "drop") %>%
-      arrange(Earliest_ASTDY) %>%
-      pull(USUBJID)
-    
-    data_grouped <-  data_grouped %>%
-      mutate(USUBJID = factor(USUBJID, levels = subject_order))
-    
-    ae_color_map <-  global_ae_colors$mapping
-    
-    hover_text <- with(data_grouped, paste(
-      "Subject ID: ", USUBJID,
-      "<br>AE: ", AEDECOD,
-      "<br>Start Day: ", ASTDY,
-      "<br>End Day: ", AENDY,
-      "<br>Severity: ", AESEV,
-      "<br>Serious: ", AESER,
-      "<br>Action Taken: ", AEACN,
-      "<br>Relationship: ", AEREL,
-      "<br>Outcome: ", AEOUT
-    ))
-    
-    plot <-  plot_ly() %>%
-      add_segments(
-        data = data_grouped,
-        x = ~ASTDY,
-        xend = ~AENDY,
-        y = ~USUBJID,
-        yend = ~USUBJID,
-        color = ~AEDECOD,
-        colors = ae_color_map,
-        hoverinfo = "text",
-        text = hover_text,
-        showlegend = FALSE
-      ) %>%
-      add_markers(
-        data = data_grouped,
-        x = ~ASTDY,
-        y = ~USUBJID,
-        color = ~AEDECOD,
-        colors = ae_color_map,
-        marker = list(size = 6),
-        hoverinfo = "text",
-        text = hover_text,
-        name = ~AEDECOD,
-        legendgroup = ~AEDECOD
-      ) %>%
-      add_markers(
-        data = data_grouped,
-        x = ~AENDY,
-        y = ~USUBJID,
-        color = ~AEDECOD,
-        colors = ae_color_map,
-        marker = list(size = 6),
-        hoverinfo = "text",
-        text = hover_text,
-        showlegend = FALSE,
-        legendgroup = ~AEDECOD
-      ) %>%
-      layout(
-        title = list(
-          text = "Patient Profile: Adverse Event Timeline",
-          font = list(size = 18)
-        ),
-        xaxis = list(title = list(text = "Study Day", font = list(size = 14))),
-        yaxis = list(
-          title = list(text = "Subject ID", font = list(size = 14)),
-          categoryorder = "array",
-          categoryarray = subject_order
-        ),
-        showlegend = TRUE,
-        legend = list(
-          title = list(text = if (!is.null(selected_aes)) "Selected AEs" else "Adverse Events", font = list(size = 14)),
-          font = list(size = 12),
-          traceorder = "normal"
-        ),
-        font = list(size = 12),
-        margin = list(l = 50, r = 50, b = 50, t = 50, pad = 4)
-      )
-    
-    return(plot)
-  }
-  
-  output$patient_profile_plot <-  renderPlotly({
+  output$patient_profile_plot <- renderPlotly({
     plot <- create_patient_profile_plot(filtered_data(), selected_aes())
     plot %>% config(responsive = TRUE)
   })
 }
 
+# Run the application
 shinyApp(ui, server)
