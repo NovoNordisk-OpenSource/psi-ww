@@ -11,7 +11,7 @@ library(purrr)
 brdata <- read_excel("202503/brdata.xlsx", sheet = "brdata")
 
 # Rename columns based on the description tab
-brdata <- brdata %>% 
+brdata <-  brdata %>% 
   rename(
     Drug = Trt1,
     Placebo = Trt2,
@@ -28,7 +28,7 @@ brdata <- brdata %>%
   )
 
 # Convert relevant columns to numeric
-numeric_cols <- c("IncRate1", "IncRate2", "Diff_IncRate_LowerCI", "Diff_IncRate_UpperCI", "RelRisk_LowerCI", "RelRisk_UpperCI", "Prop1", "Prop2")
+numeric_cols <-  c("IncRate1", "IncRate2", "Diff_IncRate_LowerCI", "Diff_IncRate_UpperCI", "RelRisk_LowerCI", "RelRisk_UpperCI", "Prop1", "Prop2")
 
 conversion_issues <- character(0)
 brdata[numeric_cols] <- lapply(numeric_cols, function(col) {
@@ -47,9 +47,8 @@ if (length(conversion_issues) > 0) {
 }
 
 # Check for any remaining non-numeric values
-non_numeric <- sapply(brdata[numeric_cols], function(x) sum(is.na(x)))
+non_numeric <-  sapply(brdata[numeric_cols], function(x) sum(is.na(x)))
 print(non_numeric)
-
 
 # Derive Diff_IncRate and RelRisk
 brdata <- brdata %>%
@@ -59,19 +58,17 @@ brdata <- brdata %>%
     Drug = paste(Drug_Status, ":", Drug) # Concatenate Drug_Status with Drug
   )
 
-
 # Filter data for benefit and risk plots
-benefit_data <- brdata %>%
+benefit_data <-  brdata %>%
   filter(Factor == "Benefit", Grouped_Outcome %in% c("Clinical Assessment"), Filter == "None") %>% 
   mutate(Drug = factor(Drug, levels = rev(unique(Drug))))
 
-risk_data <- brdata %>%
+risk_data <-  brdata %>%
   filter(Factor == "Risk", Grouped_Outcome %in% c("Drug Class Toxicity"), Filter == "None") %>%
   mutate(Drug = factor(Drug, levels = rev(unique(Drug))))
 
-
 # Define color palettes
-benefit_colors <- c("#FF7F0E", "#1F77B4") # Orange and Blue (complementary) for main benefit plot
+benefit_colors <-  c("#FF7F0E", "#1F77B4") # Orange and Blue (complementary) for main benefit plot
 active_color <- "#2CA02C" # Darker Green for Active Treatment (arrows and annotations)
 placebo_color <- "#6A3D9A" # Darker Purple for Placebo (arrows and annotations)
 risk_color <- "#D62728" # Red for risk plot
@@ -94,7 +91,11 @@ create_benefit_plot <- function(data) {
       y = NULL
     ) +
     theme_minimal() +
-    theme(legend.position = "bottom", plot.margin = margin(b = 20)) +
+    theme(
+      legend.position = "bottom", 
+      plot.margin = margin(b = 20),
+      axis.text.y = element_text(face = "bold")
+    ) +
     coord_cartesian(clip = "off")
 }
 
@@ -122,7 +123,11 @@ create_risk_plot <- function(data) {
       y = NULL
     ) +
     theme_minimal() +
-    theme(legend.position = "none", plot.margin = margin(b = 20)) +
+    theme(
+      legend.position = "none", 
+      plot.margin = margin(b = 20),
+      axis.text.y = element_text(face = "bold")
+    ) +
     coord_cartesian(clip = "off")
 }
 
@@ -143,7 +148,7 @@ create_count_plot <- function(data) {
         paste(nSub2, "/", N2)
       )
     )
-
+  
   ggplot(count_data, aes(x = Proportion, y = Drug, color = Group)) +
     geom_point(size = 3) +
     geom_text(
@@ -169,7 +174,10 @@ create_count_plot <- function(data) {
       y = NULL
     ) +
     theme_minimal() +
-    theme(legend.position = "bottom") +
+    theme(
+      legend.position = "bottom",
+      axis.text.y = element_text(face = "bold")
+    ) +
     guides(color = guide_legend(title = NULL))
 }
 
@@ -190,19 +198,19 @@ adjust_y_axis <- function(p, data) {
 
 # Function to add arrows and labels
 add_arrows_and_labels <- function(
-  p,
-  x_left,
-  x_right,
-  y_pos,
-  label_left,
-  label_right,
-  break_point,
-  is_log_scale = FALSE,
-  transparent = FALSE,
-  reverse_colors = FALSE
+    p,
+    x_left,
+    x_right,
+    y_pos,
+    label_left,
+    label_right,
+    break_point,
+    is_log_scale = FALSE,
+    transparent = FALSE,
+    reverse_colors = FALSE
 ) {
   text_offset <- if (is_log_scale) 0.1 else 0.05 * (x_right - x_left)
-
+  
   if (is_log_scale) {
     gap <- 0.01 # Fixed small gap for log scale
     left_end <- break_point / (1 + gap)
@@ -212,7 +220,7 @@ add_arrows_and_labels <- function(
     left_end <- break_point - gap
     right_start <- break_point + gap
   }
-
+  
   if (reverse_colors) {
     arrow_color_left <- if (transparent) alpha(active_color, 0) else
       active_color
@@ -228,7 +236,7 @@ add_arrows_and_labels <- function(
     text_color_left <- placebo_color
     text_color_right <- active_color
   }
-
+  
   p +
     # Left arrow
     annotate(
@@ -270,7 +278,7 @@ add_arrows_and_labels <- function(
 }
 
 # Create and modify plots
-benefit_plot <- create_benefit_plot(benefit_data) %>%
+benefit_plot <-  create_benefit_plot(benefit_data) %>%
   add_arrows_and_labels(
     0.5,
     20,
@@ -281,7 +289,7 @@ benefit_plot <- create_benefit_plot(benefit_data) %>%
     is_log_scale = TRUE
   )
 
-risk_plot <- create_risk_plot(risk_data) %>%
+risk_plot <-  create_risk_plot(risk_data) %>%
   remove_y_axis() %>%
   add_arrows_and_labels(
     min(risk_data$Diff_IncRate_LowerCI, -20),
@@ -294,7 +302,7 @@ risk_plot <- create_risk_plot(risk_data) %>%
     reverse_colors = TRUE
   )
 
-count_plot <- create_count_plot(risk_data) %>%
+count_plot <-  create_count_plot(risk_data) %>%
   remove_y_axis() %>%
   # Add phantom line and annotation for alignment (now transparent)
   add_arrows_and_labels(
@@ -311,18 +319,36 @@ count_plot <- create_count_plot(risk_data) %>%
     plot.margin = margin(t = 20, r = 5.5, b = 5.5, l = 5.5, unit = "pt")
   )
 
-# Combine the plots
-plots <- list(benefit_plot, risk_plot, count_plot) %>%
+# Adjust y-axis for all plots
+plots <-  list(benefit_plot, risk_plot, count_plot) %>%
   map(~ adjust_y_axis(., benefit_data))
 
-combined_plot <- plots[[1]] +
-  plots[[2]] +
-  plots[[3]] +
-  plot_layout(ncol = 3, widths = c(3, 2, 3)) +
+# Function to create a thin vertical line plot with padding
+create_separator <- function() {
+  ggplot() + 
+    geom_vline(xintercept = 0, color = "black", size = 0.5) +
+    theme_void() +
+    theme(
+      plot.margin = margin(0, 10, 0, 10, "pt"),
+      panel.border = element_rect(color = NA, fill = NA)
+    )
+}
+
+# Create separator plots
+separator1 <- create_separator()
+separator2 <- create_separator()
+
+# Combine the plots with separators
+combined_plot <- (plots[[1]] | separator1 | plots[[2]] | separator2 | plots[[3]]) +
+  plot_layout(ncol = 5, widths = c(1, 0.02, 1, 0.02, 1)) +
   plot_annotation(
     title = "Benefit-Risk Profile of Drugs",
-    theme = theme(plot.title = element_text(hjust = 0.5, size = 16))
-  )
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 16),
+      plot.margin = margin(10, 10, 10, 10)
+    )
+  ) &
+  theme(plot.margin = margin(5, 5, 5, 5))
 
 # Save the plot
 ggsave(
