@@ -87,14 +87,16 @@ create_benefit_plot <- function(data) {
     scale_color_manual(values = benefit_colors) +
     labs(
       title = "Benefits: Comparative Efficacy vs Placebo",
-      x = "Relative Risk (log scale)",
+      x = "\nRelative Risk (log scale)",
       y = NULL
     ) +
     theme_minimal() +
     theme(
       legend.position = "bottom", 
       plot.margin = margin(b = 20),
-      axis.text.y = element_text(face = "bold")
+      axis.text.y = element_text(face = "bold", size = 10),
+      legend.text = element_text(size = 10),
+      legend.title = element_text(size = 10)
     ) +
     coord_cartesian(clip = "off")
 }
@@ -119,14 +121,14 @@ create_risk_plot <- function(data) {
     ) +
     labs(
       title = "Risks: Drug Class Toxicity",
-      x = "Difference in Incidence Rate per 100 Patient-Years",
+      x = "\nDifference in Incidence Rate per 100 Patient-Years",
       y = NULL
     ) +
     theme_minimal() +
     theme(
       legend.position = "none", 
       plot.margin = margin(b = 20),
-      axis.text.y = element_text(face = "bold")
+      axis.text.y = element_text(face = "bold", size = 10)
     ) +
     coord_cartesian(clip = "off")
 }
@@ -170,13 +172,15 @@ create_count_plot <- function(data) {
     ) +
     labs(
       title = "Event Counts and Proportions for Drug Class Toxicity",
-      x = "Proportion of Events",
+      x = "\nProportion of Events",
       y = NULL
     ) +
     theme_minimal() +
     theme(
       legend.position = "bottom",
-      axis.text.y = element_text(face = "bold")
+      axis.text.y = element_text(face = "bold", size = 10),
+      legend.text = element_text(size = 10),
+      legend.title = element_text(size = 10)
     ) +
     guides(color = guide_legend(title = NULL))
 }
@@ -265,7 +269,8 @@ add_arrows_and_labels <- function(
       y = y_pos + 0.1,
       label = label_left,
       hjust = 0,
-      color = text_color_left
+      color = text_color_left,
+      size = 4
     ) +
     annotate(
       "text",
@@ -273,7 +278,8 @@ add_arrows_and_labels <- function(
       y = y_pos + 0.1,
       label = label_right,
       hjust = 1,
-      color = text_color_right
+      color = text_color_right,
+      size = 4
     )
 }
 
@@ -348,7 +354,11 @@ combined_plot <- (plots[[1]] | separator1 | plots[[2]] | separator2 | plots[[3]]
       plot.margin = margin(10, 10, 10, 10)
     )
   ) &
-  theme(plot.margin = margin(5, 5, 5, 5))
+  theme(
+    plot.margin = margin(5, 5, 5, 5),
+    legend.text = element_text(size = 10),
+    legend.title = element_text(size = 10)
+  )
 
 # Save the plot
 ggsave(
