@@ -6,9 +6,13 @@ library(patchwork)
 library(RColorBrewer)
 library(readxl)
 library(purrr)
+library(here)
+
+# Set option to print checks
+print_checks <- FALSE
 
 # Read in data
-brdata <- read_excel("202503/brdata.xlsx", sheet = "brdata")
+brdata <- read_excel(paste0(here(), "/202503/brdata.xlsx"), sheet = "brdata")
 
 # Rename columns based on the description tab
 brdata <-  brdata %>% 
@@ -30,25 +34,34 @@ brdata <-  brdata %>%
 # Convert relevant columns to numeric
 numeric_cols <-  c("IncRate1", "IncRate2", "Diff_IncRate_LowerCI", "Diff_IncRate_UpperCI", "RelRisk_LowerCI", "RelRisk_UpperCI", "Prop1", "Prop2")
 
-conversion_issues <- character(0)
-brdata[numeric_cols] <- lapply(numeric_cols, function(col) {
-  result <- tryCatch({
-    as.numeric(gsub(",", "", as.character(brdata[[col]])))
-  }, warning = function(w) {
-    conversion_issues <<- c(conversion_issues, paste("Warning in", col, ":", conditionMessage(w)))
-    as.numeric(gsub(",", "", as.character(brdata[[col]])))
+# Initialize conversion_issues
+conversion_issues <-  character(0)
+
+# Suppress warnings for this specific operation
+suppressWarnings({
+  brdata[numeric_cols] <- lapply(numeric_cols, function(col) {
+    result <- tryCatch({
+      as.numeric(gsub(",", "", as.character(brdata[[col]])))
+    }, warning = function(w) {
+      conversion_issues <<- c(conversion_issues, paste("Warning in", col, ":", conditionMessage(w)))
+      as.numeric(gsub(",", "", as.character(brdata[[col]])))
+    })
+    result
   })
-  result
 })
 
-if (length(conversion_issues) > 0) {
+if (print_checks && length(conversion_issues) > 0) {
   cat("Conversion issues occurred:\n")
   cat(paste(conversion_issues, collapse = "\n"))
 }
 
 # Check for any remaining non-numeric values
 non_numeric <-  sapply(brdata[numeric_cols], function(x) sum(is.na(x)))
-print(non_numeric)
+
+if (print_checks){
+  print(non_numeric) 
+}
+
 
 # Derive Diff_IncRate and RelRisk
 brdata <- brdata %>%
@@ -362,7 +375,7 @@ combined_plot <- (plots[[1]] | separator1 | plots[[2]] | separator2 | plots[[3]]
 
 # Save the plot
 ggsave(
-  "202503/benefit_risk_plot_NN1.png",
+  paste0(here(), "/202503/benefit_risk_plot_nn.png"),
   combined_plot,
   width = 20,
   height = 8,
