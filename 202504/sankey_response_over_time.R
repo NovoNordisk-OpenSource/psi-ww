@@ -122,6 +122,7 @@ create_sankey <- function(df, treatment_name) {
   legend_items <- names(response_colors)
   legend_annotations <- list()
   legend_width <- 1 / length(legend_items)
+  spacing <- 0.15  # Spacing between legend items
   
   # Add colored rectangles for legend
   for(i in 1:length(legend_items)) {
@@ -133,7 +134,11 @@ create_sankey <- function(df, treatment_name) {
       y0 = -0.3,
       y1 = -0.28,
       xref = 'paper',
-      yref = 'paper',
+      yref = 'paper',     
+      font = list(
+        size = 10,
+        color = response_colors[legend_items[i]]
+      ),
       fillcolor = response_colors[legend_items[i]],
       line = list(color = response_colors[legend_items[i]]),
       opacity = 0.8
@@ -141,7 +146,8 @@ create_sankey <- function(df, treatment_name) {
     
     # Add text label
     legend_annotations[[length(legend_annotations) + 1]] <- list(
-      x = (i-1)*legend_width + 0.04,  # Position text after rectangle
+      x = 0.1 + (i-1)*spacing,
+      # x = (i-1)*legend_width + 0.04,  # Position text after rectangle
       y = -0.29,  # Position below visit labels
       text = legend_items[i],
       showarrow = FALSE,
@@ -161,7 +167,7 @@ create_sankey <- function(df, treatment_name) {
     font = list(size = 12),
     annotations = c(x_axis_annotations, 
                     legend_annotations[seq(2, length(legend_annotations), by=2)]),  # Text annotations only
-    shapes = legend_annotations[seq(1, length(legend_annotations), by=2)],  # Rectangle shapes only
+    # shapes = legend_annotations[seq(1, length(legend_annotations), by=2)],  # Rectangle shapes only
     margin = list(
       l = 50,
       r = 50,
