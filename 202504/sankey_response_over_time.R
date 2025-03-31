@@ -12,6 +12,20 @@ create_sankey <- function(df, treatment_name) {
   df <- df %>% arrange(USUBJID, AVISITN)
   visits <- sort(unique(df$AVISITN))
   
+  response_order <- c("High Response", "Response", "Low Response", "No Response")
+  df$AVALC <- factor(df$AVALC, levels = response_order)
+  
+  # Create deterministic all_nodes
+  all_nodes_df <- expand.grid(
+    visit = visits,
+    response = response_order,
+    stringsAsFactors = FALSE
+  ) %>%
+    mutate(label = paste0("Visit ", visit, ": ", response),
+           x = (visit - 1)/(max(visits) - 1))
+  
+  all_nodes <- all_nodes_df$label
+  
   wide_data <- df %>%
     select(USUBJID, AVISITN, AVALC) %>%
     pivot_wider(
@@ -24,6 +38,7 @@ create_sankey <- function(df, treatment_name) {
   source_labels <- c()
   target_labels <- c()
   values <- c()
+  hover_texts <- c()
   
   for (i in 1:(length(visits)-1)) {
     v1 <- visits[i]
@@ -39,11 +54,14 @@ create_sankey <- function(df, treatment_name) {
     if (nrow(transitions) == 0) next
     
     for (j in 1:nrow(transitions)) {
-      source_label <- paste0("Visit ", v1, ": ", transitions[[v1_col]][j])
-      target_label <- paste0("Visit ", v2, ": ", transitions[[v2_col]][j])
+      from_resp <- as.character(transitions[[v1_col]][j])
+      to_resp <- as.character(transitions[[v2_col]][j])
+      source_label <- paste0("Visit ", v1, ": ", from_resp)
+      target_label <- paste0("Visit ", v2, ": ", to_resp)
       source_labels <- c(source_labels, source_label)
       target_labels <- c(target_labels, target_label)
       values <- c(values, transitions$count[j])
+      hover_texts <- c(hover_texts, paste0("Visit ", v1, " (", from_resp, ") → Visit ", v2, " (", to_resp, "): ", transitions$count[j], " patients"))
     }
   }
   
@@ -52,128 +70,98 @@ create_sankey <- function(df, treatment_name) {
     return(NULL)
   }
   
-  all_nodes <- unique(c(source_labels, target_labels))
   source_indices <- match(source_labels, all_nodes) - 1
   target_indices <- match(target_labels, all_nodes) - 1
   
   response_colors <- c(
-    "High Response" = "#66CC66",
-    "Response" = "#99CC99",
+    "No Response" = "#FF9999",
     "Low Response" = "#FFCC99",
-    "No Response" = "#FF9999"
+    "Response" = "#99CC99",
+    "High Response" = "#66CC66"
   )
   
-  node_colors <- sapply(all_nodes, function(node) {
-    response <- sub(".*: ", "", node)
-    return(response_colors[response])
-  })
-  
-  # Create empty labels for nodes
+  node_colors <- sapply(all_nodes_df$response, function(response) response_colors[response])
   node_labels <- rep("", length(all_nodes))
-  
-  # Create x-axis positions for nodes (visits)
-  x_positions <- numeric(length(all_nodes))
-  for(i in 1:length(all_nodes)) {
-    visit_num <- as.numeric(sub(":.*$", "", sub("^Visit ", "", all_nodes[i])))
-    x_positions[i] <- (visit_num - 1)/(max(visits) - 1)
-  }
+  x_positions <- all_nodes_df$x
   
   fig <- plot_ly(
     type = "sankey",
     orientation = "h",
     node = list(
-      label = node_labels,  # Empty labels
+      label = node_labels,
       color = node_colors,
       pad = 15,
       thickness = 20,
       line = list(color = "black", width = 0.5),
-      x = x_positions  # Set x positions for proper visit spacing
+      x = x_positions
     ),
     link = list(
       source = source_indices,
       target = target_indices,
       value = values,
+      label = hover_texts,
+      hoverinfo = "text",
+      text = hover_texts,
       color = sapply(source_indices, function(i) {
         response <- sub(".*: ", "", all_nodes[i+1])
         color <- response_colors[response]
         r <- strtoi(substr(color, 2, 3), 16)
         g <- strtoi(substr(color, 4, 5), 16)
         b <- strtoi(substr(color, 6, 7), 16)
-        return(paste0("rgba(", r, ",", g, ",", b, ",0.5)"))
+        paste0("rgba(", r, ",", g, ",", b, ",0.5)")
       })
     )
   )
   
-  # Create visit labels at the bottom
-  x_axis_annotations <- list()
-  for(visit in visits) {
-    x_axis_annotations[[length(x_axis_annotations) + 1]] <- list(
+  x_axis_annotations <- lapply(visits, function(visit) {
+    list(
       x = (visit - 1)/(max(visits) - 1),
-      y = -0.15,  # Position for visit labels
+      y = -0.15,
       text = paste("Visit", visit),
       showarrow = FALSE,
       xanchor = 'center',
       yanchor = 'top',
-      font = list(size = 10)
+      font = list(size = 12)
     )
-  }
+  })
   
-  # Create horizontal legend at the bottom with colored rectangles
   legend_items <- names(response_colors)
   legend_annotations <- list()
-  legend_width <- 1 / length(legend_items)
-  spacing <- 0.15  # Spacing between legend items
+  spacing <- 0.2
   
-  # Add colored rectangles for legend
   for(i in 1:length(legend_items)) {
-    # Add rectangle shape
     legend_annotations[[length(legend_annotations) + 1]] <- list(
       type = "rect",
-      x0 = (i-1)*legend_width,
-      x1 = (i-1)*legend_width + 0.02,  # Small rectangle width
-      y0 = -0.3,
-      y1 = -0.28,
+      x0 = 0.25 + (i-1)*spacing,
+      x1 = 0.25 + (i-1)*spacing + 0.02,
+      y0 = -0.35,
+      y1 = -0.33,
       xref = 'paper',
-      yref = 'paper',     
-      font = list(
-        size = 10,
-        color = response_colors[legend_items[i]]
-      ),
+      yref = 'paper',
       fillcolor = response_colors[legend_items[i]],
       line = list(color = response_colors[legend_items[i]]),
       opacity = 0.8
     )
     
-    # Add text label
     legend_annotations[[length(legend_annotations) + 1]] <- list(
-      x = 0.1 + (i-1)*spacing,
-      # x = (i-1)*legend_width + 0.04,  # Position text after rectangle
-      y = -0.29,  # Position below visit labels
+      x = 0.28 + (i-1)*spacing,
+      y = -0.34,
       text = legend_items[i],
       showarrow = FALSE,
       xref = 'paper',
       yref = 'paper',
       xanchor = 'left',
-      font = list(
-        size = 10,
-        color = 'black'
-      )
+      font = list(size = 14, color = response_colors[legend_items[i]])
     )
   }
   
-  # Single layout call with all annotations and shapes
   fig <- fig %>% layout(
     title = paste("Response Over Time -", treatment_name),
     font = list(size = 12),
-    annotations = c(x_axis_annotations, 
-                    legend_annotations[seq(2, length(legend_annotations), by=2)]),  # Text annotations only
-    # shapes = legend_annotations[seq(1, length(legend_annotations), by=2)],  # Rectangle shapes only
-    margin = list(
-      l = 50,
-      r = 50,
-      b = 120,  # Increased bottom margin to accommodate labels and legend
-      t = 50
-    ),
+    annotations = c(x_axis_annotations,
+                    legend_annotations[seq(2, length(legend_annotations), by=2)]),
+    shapes = legend_annotations[seq(1, length(legend_annotations), by=2)],
+    margin = list(l = 50, r = 50, b = 160, t = 50),
     xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
     yaxis = list(showgrid = FALSE, zeroline = FALSE)
   )
@@ -207,7 +195,7 @@ if (length(sankey_plots) > 0) {
     <title>Response Over Time by Treatment</title>
     <style>
       body { font-family: Arial, sans-serif; margin: 20px; }
-      .container { display: flex; flex-direction: column; }
+      .container { display: flex; flex-direction: column; flex-wrap: wrap; }
       .plot-container { margin-bottom: 30px; border: 1px solid #ddd; padding: 10px; }
       h1 { text-align: center; }
       iframe { width: 100%; height: 600px; border: none; }
