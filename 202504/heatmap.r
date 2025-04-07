@@ -1,115 +1,122 @@
-# Load required libraries
+# File: 202504/heatmap_comparison.R
+
 library(dplyr)
 library(tidyr)
-library(plotly)
-library(htmlwidgets)
+library(ggplot2)
+library(gridExtra)
+library(scales)
 
-# Read the data
-data <- read.csv("202504/WWW_APR2025.csv", stringsAsFactors = FALSE)
+sort_order_map <- c("No Response" = 1, "Low Response" = 2, "Response" = 3, "High Response" = 4, "Missing" = 5)
+response_levels <- names(sort_order_map)
 
-# Function to create a heatmap
 create_heatmap <- function(df, treatment_name) {
-    # Prepare data for the heatmap
-    heatmap_data <- df %>%
-        select(USUBJID, AVISITN, AVALC) %>%
-        mutate(AVALC = factor(AVALC, levels = c("No Response", "Low Response", "Response", "High Response"))) %>%
-        pivot_wider(names_from = AVISITN, values_from = AVALC, values_fill = NA) %>%
-        arrange(USUBJID)
-
-    # Get column names for visit numbers
-    visit_cols <- setdiff(colnames(heatmap_data), "USUBJID")
-
-    # Check if we have any data
-    if (nrow(heatmap_data) == 0 || length(visit_cols) == 0) {
-        cat("No data available for", treatment_name, "\n")
-        return(NULL)
+  heatmap_data <- df %>%
+    select(USUBJID, AVISITN, AVALC) %>%
+    mutate(AVALC = factor(ifelse(is.na(AVALC), "Missing", AVALC), levels = response_levels)) %>%
+    arrange(USUBJID)
+  
+  visit_levels <- sort(unique(heatmap_data$AVISITN))
+  
+  subject_wide <- heatmap_data %>%
+    pivot_wider(names_from = AVISITN, values_from = AVALC, values_fill = "Missing")
+  
+  subject_wide$sort_key <- ""
+  for (v in visit_levels) {
+    col <- as.character(v)
+    if (!col %in% colnames(subject_wide)) {
+      subject_wide[[col]] <- "Missing"
     }
-
-    # Create a response to numeric mapping
-    response_levels <- c("No Response" = 1, "Low Response" = 2, "Response" = 3, "High Response" = 4)
-
-    # Create a matrix for the heatmap values
-    heatmap_matrix <- matrix(NA, nrow = nrow(heatmap_data), ncol = length(visit_cols))
-
-    # Fill the matrix with numeric values
-    for (i in 1:length(visit_cols)) {
-        col <- visit_cols[i]
-        heatmap_matrix[, i] <- sapply(heatmap_data[[col]], function(x) {
-            if (is.na(x)) {
-                return(0)
-            } else {
-                return(response_levels[as.character(x)])
-            }
-        })
-    }
-
-    # Sort subjects based on their responses across visits
-    sort_order <- do.call(order, as.data.frame(heatmap_matrix))
-    heatmap_matrix <- heatmap_matrix[sort_order, , drop = FALSE]
-    sorted_ids <- heatmap_data$USUBJID[sort_order]
-
-    # Convert column names to numeric visit labels
-    visit_labels <- seq_along(visit_cols)
-
-    # Debugging
-    cat("Matrix dimensions for", treatment_name, ":", nrow(heatmap_matrix), "x", ncol(heatmap_matrix), "\n")
-
-    # Create heatmap
-    fig <- plot_ly(
-        x = visit_labels,
-        y = sorted_ids,
-        z = heatmap_matrix,
-        type = "heatmap",
-        colorscale = list(
-            c(0, "#FFFFFF"), # 0 (missing) - white
-            c(0.2, "#FF9999"), # 1 - No Response
-            c(0.4, "#FFCC99"), # 2 - Low Response
-            c(0.6, "#99CC99"), # 3 - Response
-            c(0.8, "#66CC66") # 4 - High Response
-        ),
-        colorbar = list(
-            title = "Response",
-            tickvals = c(0, 1, 2, 3, 4),
-            ticktext = c("Missing", "No Response", "Low Response", "Response", "High Response")
-        )
-    ) %>%
-        layout(
-            title = paste("Heatmap of Responses for", treatment_name),
-            xaxis = list(title = "Visit", tickvals = visit_labels, ticktext = visit_labels),
-            yaxis = list(title = "Subjects", autorange = "reversed", showticklabels = FALSE) # Label Y-axis as "Subjects"
-        )
-
-    return(fig)
+    subject_wide$sort_key <- paste0(subject_wide$sort_key, sprintf("%02d", sort_order_map[subject_wide[[col]]]))
+  }
+  
+  subject_wide <- subject_wide %>% arrange(desc(sort_key))
+  sorted_subjects <- subject_wide$USUBJID
+  
+  plot_data <- heatmap_data %>%
+    mutate(AVISITN = factor(AVISITN, levels = visit_levels)) %>%
+    mutate(AVALC = factor(AVALC, levels = response_levels)) %>%
+    mutate(USUBJID = factor(USUBJID, levels = rev(sorted_subjects)))
+  
+  p <- ggplot(plot_data, aes(x = AVISITN, y = USUBJID, fill = AVALC)) +
+    geom_tile(color = "white") +
+    scale_fill_manual(
+      values = c(
+        "High Response" = "#00AA00",
+        "Response" = "#AAAA00",
+        "Low Response" = "#FFAA00",
+        "No Response" = "#FF0000",
+        "Missing" = "#888888"
+      ),
+      breaks = c("High Response", "Response", "Low Response", "No Response", "Missing"),
+      drop = FALSE
+    ) +
+    labs(
+      x = "Visit",
+      y = "Subject ID",
+      fill = "Response",
+      title = treatment_name
+    ) +
+    theme_classic() +
+    theme(
+      plot.title = element_text(size = 14, face = "bold", hjust = 0.5),
+      axis.text.y = element_blank(),
+      axis.title.y = element_text(size = 14, face = "bold"),
+      axis.title.x = element_text(size = 14, face = "bold"),
+      axis.ticks.y = element_blank(),
+      axis.line.y = element_blank(),
+      legend.title = element_text(size = 12),
+      panel.grid = element_blank()
+    )
+  
+  return(p)
 }
 
-# Filter data for two treatments
+data <- read.csv("202504/WWW_APR2025.csv", stringsAsFactors = FALSE)
 treatment_a_data <- data %>% filter(TRT == "Drug A")
 treatment_b_data <- data %>% filter(TRT == "Drug B")
 
-# Create heatmaps for the two treatments
 heatmap_a <- create_heatmap(treatment_a_data, "Drug A")
-heatmap_b <- create_heatmap(treatment_b_data, "Drug B")
+heatmap_b <- create_heatmap(treatment_b_data, "Drug B") + theme(axis.title.y = element_blank())
 
-# Combine the two heatmaps side by side if both exist
+# Save the combined heatmap side-by-side
 if (!is.null(heatmap_a) && !is.null(heatmap_b)) {
-    combined_heatmap <- subplot(heatmap_a, heatmap_b, nrows = 1, shareY = FALSE) %>%
-        layout(
-            title = "Heatmaps for Drug A and Drug B",
-            yaxis = list(title = "Subjects"), # Add Y-axis label for the combined plot
-            showlegend = TRUE # Ensure only one legend is displayed
-        )
-
-    # Save the combined heatmap as an HTML file
-    htmlwidgets::saveWidget(combined_heatmap, file = "202504/heatmap_drug_comparison.html", selfcontained = TRUE)
-    cat("Saved combined heatmap: 202504/heatmap_drug_comparison.html\n")
+  library(cowplot)
+  library(grid)
+  
+  legend <- cowplot::get_legend(
+    heatmap_b +
+      guides(fill = guide_legend(ncol = 1, reverse = TRUE, override.aes = list(colour = "black"))) +
+      theme(
+        legend.position = "right",
+        legend.spacing.y = unit(0.5, "lines"),
+        legend.key = element_rect(colour = "black", fill = NA)
+      )
+  )
+  
+  plots <- plot_grid(heatmap_a + theme(legend.position = "none"),
+                     heatmap_b + theme(legend.position = "none"),
+                     ncol = 2, align = "v")
+  
+  combined <- plot_grid(
+    plot_grid(NULL,
+              ggdraw() + draw_label("Patient Response Over Time by Treatment", fontface = "bold", size = 16, hjust = 0.5),
+              NULL,
+              ncol = 3, rel_widths = c(0.1, 0.8, 0.1)),
+    plot_grid(heatmap_a + theme(legend.position = "none"),
+              plot_grid(heatmap_b + theme(legend.position = "none"), legend, ncol = 2, rel_widths = c(1, 0.2)),
+              ncol = 2, align = "v"),
+    ncol = 1,
+    rel_heights = c(0.1, 1)
+  )
+  
+  ggsave("202504/heatmap_drug_comparison.png", combined, width = 20, height = 8, bg = "white")
+  cat("Saved combined heatmap: heatmap_drug_comparison.png\n")
 } else if (!is.null(heatmap_a)) {
-    # Save just Drug A heatmap
-    htmlwidgets::saveWidget(heatmap_a, file = "202504/heatmap_drug_a.html", selfcontained = TRUE)
-    cat("Saved Drug A heatmap: 202504/heatmap_drug_a.html\n")
+  ggsave("202504/heatmap_drug_a.png", heatmap_a, width = 10, height = 8, bg = "white")
+  cat("Saved Drug A heatmap: heatmap_drug_a.png\n")
 } else if (!is.null(heatmap_b)) {
-    # Save just Drug B heatmap
-    htmlwidgets::saveWidget(heatmap_b, file = "202504/heatmap_drug_b.html", selfcontained = TRUE)
-    cat("Saved Drug B heatmap: 202504/heatmap_drug_b.html\n")
+  ggsave("202504/heatmap_drug_b.png", heatmap_b, width = 10, height = 8, bg = "white")
+  cat("Saved Drug B heatmap: heatmap_drug_b.png\n")
 } else {
-    cat("No data available to create heatmaps\n")
+  cat("No data available to create heatmaps\n")
 }
