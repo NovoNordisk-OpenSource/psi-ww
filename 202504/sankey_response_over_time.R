@@ -8,9 +8,9 @@ library(htmlwidgets)
 data <- read.csv("202504/WWW_APR2025.csv", stringsAsFactors = FALSE)
 
 # Function to create a Sankey diagram
-create_sankey <- function(df, treatment_name) {
+create_sankey <-  function(df, treatment_name) {
   df <- df %>% arrange(USUBJID, AVISITN)
-  visits <- sort(unique(df$AVISITN))
+  visits <-  sort(unique(df$AVISITN))
   
   response_order <- c("High Response", "Response", "Low Response", "No Response")
   df$AVALC <- factor(df$AVALC, levels = response_order)
@@ -24,7 +24,7 @@ create_sankey <- function(df, treatment_name) {
     mutate(label = paste0("Visit ", visit, ": ", response),
            x = (visit - 1)/(max(visits) - 1))
   
-  all_nodes <- all_nodes_df$label
+  all_nodes <-  all_nodes_df$label
   
   wide_data <- df %>%
     select(USUBJID, AVISITN, AVALC) %>%
@@ -35,7 +35,7 @@ create_sankey <- function(df, treatment_name) {
       names_prefix = "Visit_"
     )
   
-  source_labels <- c()
+  source_labels <-  c()
   target_labels <- c()
   values <- c()
   hover_texts <- c()
@@ -125,15 +125,27 @@ create_sankey <- function(df, treatment_name) {
     )
   })
   
-  legend_items <- names(response_colors)
+  legend_items <-  names(response_colors)
   legend_annotations <- list()
   spacing <- 0.2
   
   for(i in 1:length(legend_items)) {
     legend_annotations[[length(legend_annotations) + 1]] <- list(
+      x = 0.25 + (i-1)*spacing,
+      y = -0.31,
+      text = legend_items[i],
+      showarrow = FALSE,
+      xref = 'paper',
+      yref = 'paper',
+      xanchor = 'center',
+      yanchor = 'bottom',
+      font = list(size = 12, color = response_colors[legend_items[i]])
+    )
+    
+    legend_annotations[[length(legend_annotations) + 1]] <- list(
       type = "rect",
-      x0 = 0.25 + (i-1)*spacing,
-      x1 = 0.25 + (i-1)*spacing + 0.02,
+      x0 = 0.25 + (i-1)*spacing - 0.01,
+      x1 = 0.25 + (i-1)*spacing + 0.01,
       y0 = -0.35,
       y1 = -0.33,
       xref = 'paper',
@@ -142,28 +154,18 @@ create_sankey <- function(df, treatment_name) {
       line = list(color = response_colors[legend_items[i]]),
       opacity = 0.8
     )
-    
-    legend_annotations[[length(legend_annotations) + 1]] <- list(
-      x = 0.28 + (i-1)*spacing,
-      y = -0.34,
-      text = legend_items[i],
-      showarrow = FALSE,
-      xref = 'paper',
-      yref = 'paper',
-      xanchor = 'left',
-      font = list(size = 14, color = response_colors[legend_items[i]])
-    )
   }
   
   fig <- fig %>% layout(
     title = paste("Response Over Time -", treatment_name),
     font = list(size = 12),
-    annotations = c(x_axis_annotations,
-                    legend_annotations[seq(2, length(legend_annotations), by=2)]),
-    shapes = legend_annotations[seq(1, length(legend_annotations), by=2)],
+    annotations = c(x_axis_annotations, legend_annotations[seq(1, length(legend_annotations), by=2)]),
+    shapes = legend_annotations[seq(2, length(legend_annotations), by=2)],
     margin = list(l = 50, r = 50, b = 160, t = 50),
     xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE),
-    yaxis = list(showgrid = FALSE, zeroline = FALSE)
+    yaxis = list(showgrid = FALSE, zeroline = FALSE),
+    autosize = TRUE,
+    height = 600
   )
   
   return(fig)
@@ -188,14 +190,14 @@ for (trt in names(treatment_groups)) {
 
 # Create a combined HTML file with all treatments
 if (length(sankey_plots) > 0) {
-  combined_html <- '
+  combined_html <-  '
   <!DOCTYPE html>
   <html>
   <head>
     <title>Response Over Time by Treatment</title>
     <style>
       body { font-family: Arial, sans-serif; margin: 20px; }
-      .container { display: flex; flex-direction: column; flex-wrap: wrap; }
+      .container { display: flex; flex-direction: column; }
       .plot-container { margin-bottom: 30px; border: 1px solid #ddd; padding: 10px; }
       h1 { text-align: center; }
       iframe { width: 100%; height: 600px; border: none; }
@@ -203,21 +205,26 @@ if (length(sankey_plots) > 0) {
   </head>
   <body>
     <h1>Patient Response Over Time by Treatment</h1>
-    <div class="container">
+    <div  class="container">
   '
   
   for (trt in names(sankey_plots)) {
-    filename <- paste0("sankey_", gsub(" ", "_", trt), ".html")
+    filename <-  paste0("sankey_", gsub(" ", "_", trt), ".html")
     combined_html <- paste0(combined_html, '
       <div class="plot-container">
         <h2>', trt, '</h2>
-        <iframe src="', filename, '"></iframe>
+        <iframe  src="', filename, '" frameborder="0" scrolling="no" onload="resizeIframe(this)"></iframe>
       </div>
     ')
   }
   
   combined_html <- paste0(combined_html, '
     </div>
+    <script>
+      function resizeIframe(obj) {
+        obj.style.height = obj.contentWindow.document.documentElement.scrollHeight + "px";
+      }
+    </script>
   </body>
   </html>
   ')
