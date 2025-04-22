@@ -56,8 +56,7 @@ We hold regular review sessions to:
 
 ## External Resources
 
-* [Wonderful Wednesdays Official Website](https://www.wonderful-wednesdays.org/)
-* [Official Submission Guidelines](https://www.wonderful-wednesdays.org/submit)
+* [Welcome to Wonderful Wednesday](https://www.psiweb.org/sigs-special-interest-groups/visualisation/welcome-to-wonderful-wednesdays)
 
 ## Contact
 
