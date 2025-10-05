@@ -1,48 +1,48 @@
 "Group","Baseline_kPa","EOS_kPa","Sex","Steatosis","Age","Weight"
-"LIV.52 DS",6.12,7.86,"Female","Grade improvement",22,57.6
-"LIV.52 DS",6.85,5.96,"Male","No Steatosis",52,88.1
-"LIV.52 DS",7.59,6.08,"Male","No Steatosis",31,81.9
-"LIV.52 DS",7.81,6.52,"Female","Grade improvement",31,53.5
-"LIV.52 DS",7.62,5.77,"Male","Grade improvement",45,63.7
-"LIV.52 DS",7.22,5.71,"Male","Grade improvement",50,66.3
-"LIV.52 DS",8.51,6.76,"Male","Grade improvement",54,64.9
-"LIV.52 DS",7.22,5.87,"Female","Grade improvement",52,45.3
-"LIV.52 DS",8.91,7.36,"Male","No Steatosis",43,101.7
-"LIV.52 DS",7.25,6.04,"Male","No Steatosis",48,55.7
-"LIV.52 DS",8.34,7.31,"Female","Grade improvement",62,38.8
-"LIV.52 DS",9.13,8,"Female","Grade improvement",60,41.7
-"LIV.52 DS",6.19,5.11,"Female","Grade improvement",49,79.3
-"LIV.52 DS",7.08,5.43,"Male","No Steatosis",34,65.7
-"LIV.52 DS",7.19,6.06,"Male","No Steatosis",44,49.9
-"LIV.52 DS",7.81,6.55,"Female","Deteriorate",47,73.9
-"LIV.52 DS",7.07,6.27,"Male","No Steatosis",53,42.3
-"LIV.52 DS",6.25,4.14,"Male","Grade improvement",37,67.9
-"LIV.52 DS",5.35,4.84,"Female","Grade improvement",28,63.3
-"LIV.52 DS",8.36,4.99,"Male","Grade improvement",34,92.2
-"LIV.52 DS",7.05,5.58,"Male","No Steatosis",26,55
-"LIV.52 DS",5.87,5.32,"Male","Grade improvement",34,62.4
-"LIV.52 DS",7.16,6.53,"Female","Grade improvement",30,100.6
-"LIV.52 DS",8.27,7.33,"Female","Grade improvement",48,50.2
-"LIV.52 DS",8.82,4.35,"Male","No Steatosis",18,92.2
-"LIV.52 DS",6.96,6.11,"Female","Deteriorate",34,75.9
-"LIV.52 DS",7.09,6.45,"Female","Grade improvement",50,105.4
-"LIV.52 DS",5.89,4.68,"Female","Deteriorate",45,66
-"LIV.52 DS",7.67,6.41,"Male","No Steatosis",19,61.2
-"LIV.52 DS",6.79,5.49,"Male","No Steatosis",48,92.7
-"LIV.52 DS",7.66,6.38,"Male","Grade improvement",25,85
-"Placebo",7.97,9.55,"Female","Grade improvement",24,85.9
-"Placebo",9.42,5.94,"Male","Grade improvement",61,68.7
-"Placebo",7.32,6.87,"Female","Grade improvement",22,83
-"Placebo",7.47,7.5,"Male","Grade improvement",48,46.9
-"Placebo",7.17,9.42,"Female","Deteriorate",49,66.1
-"Placebo",7.12,6.41,"Male","Grade improvement",35,76.2
-"Placebo",6.57,5.58,"Male","Grade improvement",56,62.4
-"Placebo",7.25,9.45,"Female","Grade improvement",30,76.7
-"Placebo",6.28,4.33,"Female","Deteriorate",47,85.3
-"Placebo",7.27,7.12,"Female","Grade improvement",19,48.8
-"Placebo",8.44,8.26,"Male","Grade improvement",45,48.2
-"Placebo",7.63,4.85,"Female","Grade improvement",20,75.4
-"Placebo",6.82,5.38,"Female","Grade improvement",50,56.8
-"Placebo",7.46,7.63,"Female","No Steatosis",64,86.3
-"Placebo",7.76,8.48,"Male","No Steatosis",46,25.3
-"Placebo",7.45,3.93,"Female","Grade improvement",37,94.9
+"LIV.52 DS",7.22,5.96,"Male","Other",50,92
+"LIV.52 DS",7.76,7.64,"Female","Grade improvement",35,88.4
+"LIV.52 DS",7.54,5.68,"Male","No Steatosis",39,53.9
+"LIV.52 DS",7.4,4.87,"Male","No Steatosis",44,66.2
+"LIV.52 DS",6.69,6.37,"Female","Grade improvement",31,74.4
+"LIV.52 DS",6.8,4.5,"Male","Deteriorate",43,73.3
+"LIV.52 DS",8.33,7.37,"Male","No Steatosis",50,49.2
+"LIV.52 DS",7.51,6.13,"Male","Other",61,68.8
+"LIV.52 DS",7.8,6.6,"Female","No Steatosis",58,54
+"LIV.52 DS",9.07,6.15,"Male","Grade improvement",49,66.3
+"LIV.52 DS",7.31,6.18,"Male","Other",57,91.1
+"LIV.52 DS",7.66,5.92,"Male","No Steatosis",45,77.8
+"LIV.52 DS",7.73,5.59,"Male","No Steatosis",46,49.8
+"LIV.52 DS",6.67,4.98,"Male","Other",54,77.1
+"LIV.52 DS",7.3,5.93,"Female","No Steatosis",63,80.1
+"LIV.52 DS",6.19,5.33,"Female","No Steatosis",25,61.1
+"LIV.52 DS",8.45,6.5,"Male","Grade improvement",19,60.7
+"LIV.52 DS",6.76,4.15,"Female","Grade improvement",22,69.5
+"LIV.52 DS",6.09,4.4,"Male","Grade improvement",59,72.7
+"LIV.52 DS",7.22,5.16,"Male","No Steatosis",53,94.9
+"LIV.52 DS",8.77,8.15,"Male","No Steatosis",29,55.7
+"LIV.52 DS",7.45,5.64,"Female","Grade improvement",44,79.3
+"LIV.52 DS",7.87,5.91,"Male","No Steatosis",52,61.5
+"LIV.52 DS",8.01,6.45,"Female","No Steatosis",49,61.6
+"LIV.52 DS",6.83,5.43,"Male","No Steatosis",36,83.4
+"LIV.52 DS",6.9,6.58,"Male","Other",64,85.5
+"LIV.52 DS",6.87,6.06,"Male","No Steatosis",36,98.8
+"LIV.52 DS",8.78,7.83,"Male","Other",21,108.1
+"LIV.52 DS",7.53,6.76,"Female","Other",48,87.1
+"LIV.52 DS",6.67,4.16,"Male","Other",63,76.1
+"LIV.52 DS",8.35,7.07,"Female","No Steatosis",29,64
+"Placebo",8.5,7.58,"Female","No Steatosis",28,44.1
+"Placebo",8.64,7.78,"Female","Grade improvement",59,92.5
+"Placebo",8.87,7.81,"Male","Grade improvement",57,50.9
+"Placebo",7.5,6.92,"Female","No Steatosis",48,61
+"Placebo",6.81,6.27,"Female","Deteriorate",54,70.7
+"Placebo",7.75,6.35,"Female","Grade improvement",27,82.9
+"Placebo",7.66,6.31,"Female","Other",64,52.4
+"Placebo",7.78,6.7,"Male","Other",19,40
+"Placebo",7.11,5.36,"Female","Grade improvement",38,58
+"Placebo",7.78,7.6,"Male","Grade improvement",28,88.8
+"Placebo",6.87,7.1,"Female","Other",57,62.6
+"Placebo",8.41,7.7,"Female","Grade improvement",61,40
+"Placebo",7.24,7.25,"Female","Other",44,48.7
+"Placebo",6.59,7.31,"Male","Deteriorate",61,89.3
+"Placebo",8,8.03,"Male","Other",52,67.1
+"Placebo",7.53,6.15,"Male","Other",45,68.3
