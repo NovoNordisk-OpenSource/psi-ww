@@ -9,49 +9,96 @@ library(tidyr)
 library(forcats)
 library(ggtext)
 
+# ============================================================================
+# Helper Functions
+# ============================================================================
+
+# Common theme for subgroup plots
+theme_subgroup <- function() {
+  theme_bw() +
+    theme(
+      plot.title = element_text(hjust = 0.5, size = 13, face = "bold"),
+      plot.subtitle = element_text(hjust = 0.5, size = 10),
+      legend.position = "top",
+      legend.title = element_text(size = 10),
+      panel.grid.minor = element_blank(),
+      panel.grid.major.x = element_blank()
+    )
+}
+
+# Calculate subgroup statistics
+calculate_subgroup_stats <- function(data, group_var) {
+  data %>%
+    group_by(Group, !!sym(group_var)) %>%
+    summarise(
+      n = n(),
+      mean_change = mean(Change_kPa),
+      se_change = sd(Change_kPa) / sqrt(n),
+      mean_pct_change = mean(Percent_Change),
+      sd_pct_change = sd(Percent_Change),
+      se_pct_change = sd_pct_change / sqrt(n),
+      .groups = "drop"
+    )
+}
+
+# Create subgroup point plot
+create_subgroup_plot <- function(data, x_var, title, x_label) {
+  ggplot(data, aes(x = !!sym(x_var), y = mean_pct_change, color = Group)) +
+    geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.5) +
+    geom_point(size = 4, position = position_dodge(0.4)) +
+    geom_errorbar(
+      aes(ymin = mean_pct_change - 1.96 * se_pct_change,
+          ymax = mean_pct_change + 1.96 * se_pct_change),
+      width = 0.2,
+      position = position_dodge(0.4),
+      linewidth = 0.8
+    ) +
+    geom_text(
+      aes(label = paste0("n=", n)),
+      position = position_dodge(0.4),
+      hjust = -0.5,
+      vjust = 0.5,
+      size = 3,
+      show.legend = FALSE
+    ) +
+    labs(
+      title = title,
+      subtitle = "Mean percent change in LSM Score from baseline (±95% CI)",
+      y = "Mean % Change from Baseline",
+      x = x_label,
+      color = "Treatment"
+    ) +
+    scale_color_manual(values = c("LIV.52 DS" = "#4472C4", "Placebo" = "#ED7D31")) +
+    theme_subgroup()
+}
+
+# ============================================================================
+# Data Preparation
+# ============================================================================
+
 # Read the data
 data <- read.csv("202509/LSM_Score_pub.csv")
 
-# Calculate change from baseline
+# Calculate derived variables
 data <- data %>%
   mutate(
     Change_kPa = EOS_kPa - Baseline_kPa,
-    Percent_Change = (Change_kPa / Baseline_kPa) * 100
-  )
-
-# Create age groups for subgroup analysis
-data <- data %>%
-  mutate(
+    Percent_Change = (Change_kPa / Baseline_kPa) * 100,
     Age_Group = cut(
       Age,
       breaks = c(0, 45, 55, 100),
       labels = c("≤45 years", "46-55 years", ">55 years")
-    )
-  )
-
-# Create weight categories
-data <- data %>%
-  mutate(
+    ),
     Weight_Group = cut(
       Weight,
       breaks = c(0, 70, 85, 200),
       labels = c("Lower weight", "Medium weight", "Higher weight")
-    )
-  )
-
-# Create baseline severity groups
-data <- data %>%
-  mutate(
+    ),
     Baseline_Severity = cut(
       Baseline_kPa,
       breaks = c(0, 7, 8, 20),
       labels = c("Mild (<7 kPa)", "Moderate (7-8 kPa)", "Severe (>8 kPa)")
-    )
-  )
-
-# Set factor levels for Steatosis to match publication order
-data <- data %>%
-  mutate(
+    ),
     Steatosis = factor(
       Steatosis,
       levels = c("No Steatosis", "Grade improvement", "Deteriorate", "Other")
@@ -59,7 +106,7 @@ data <- data %>%
   )
 
 # ============================================================================
-# 1. Main Effect - Boxplot of LSM Scores (Figure 3 from publication)
+# 1. Main Effect - Boxplot of LSM Scores
 # ============================================================================
 
 data_long <- data %>%
@@ -77,7 +124,6 @@ data_long <- data %>%
     )
   )
 
-# Calculate summary statistics
 summary_stats <- data %>%
   group_by(Group) %>%
   summarise(
@@ -106,7 +152,7 @@ p1 <- ggplot(data_long, aes(x = Timepoint, y = LSM_kPa)) +
   ylim(2, 10)
 
 # ============================================================================
-# 2. Steatosis Outcomes (Figure 4 from publication)
+# 2. Steatosis Outcomes
 # ============================================================================
 
 steatosis_summary <- data %>%
@@ -118,10 +164,7 @@ steatosis_summary <- data %>%
     percentage = (count / total) * 100
   )
 
-p2 <- ggplot(
-  steatosis_summary,
-  aes(x = Steatosis, y = percentage, fill = Steatosis)
-) +
+p2 <- ggplot(steatosis_summary, aes(x = Steatosis, y = percentage, fill = Steatosis)) +
   geom_bar(stat = "identity", width = 0.6) +
   geom_text(
     aes(label = paste0(round(percentage, 1), "%")),
@@ -155,213 +198,58 @@ p2 <- ggplot(
   ylim(0, 70)
 
 # ============================================================================
-# 3. Subgroup Analysis - Treatment Effect by Sex (Point Plot)
+# 3-5. Subgroup Analysis Plots
 # ============================================================================
 
-subgroup_sex <- data %>%
-  group_by(Group, Sex) %>%
-  summarise(
-    n = n(),
-    mean_change = mean(Change_kPa),
-    se_change = sd(Change_kPa) / sqrt(n),
-    mean_pct_change = mean(Percent_Change),
-    sd_pct_change = sd(Percent_Change),
-    se_pct_change = sd_pct_change / sqrt(n),
-    .groups = "drop"
-  )
+subgroup_sex <- calculate_subgroup_stats(data, "Sex")
+p3 <- create_subgroup_plot(subgroup_sex, "Sex", "Treatment Effect by Sex", "Sex")
 
-p3 <- ggplot(subgroup_sex, aes(x = Sex, y = mean_pct_change, color = Group)) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.5) +
-  geom_point(size = 4, position = position_dodge(0.4)) +
-  geom_errorbar(
-    aes(ymin = mean_pct_change - 1.96 * se_pct_change,
-        ymax = mean_pct_change + 1.96 * se_pct_change),
-    width = 0.2,
-    position = position_dodge(0.4),
-    linewidth = 0.8
-  ) +
-  geom_text(
-    aes(label = paste0("n=", n)),
-    position = position_dodge(0.4),
-    hjust = -0.5,
-    vjust = 0.5,
-    size = 3,
-    show.legend = FALSE
-  ) +
-  labs(
-    title = "Treatment Effect by Sex",
-    subtitle = "Mean percent change in LSM Score from baseline (±95% CI)",
-    y = "Mean % Change from Baseline",
-    x = "Sex",
-    color = "Treatment"
-  ) +
-  scale_color_manual(values = c("LIV.52 DS" = "#4472C4", "Placebo" = "#ED7D31")) +
-  theme_bw() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 13, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 10),
-    legend.position = "top",
-    legend.title = element_text(size = 10),
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank()
-  )
+subgroup_age <- calculate_subgroup_stats(data, "Age_Group")
+p4 <- create_subgroup_plot(subgroup_age, "Age_Group", "Treatment Effect by Age Group", "Age Group")
 
-# ============================================================================
-# 4. Subgroup Analysis - Treatment Effect by Age Group (Point Plot)
-# ============================================================================
-
-subgroup_age <- data %>%
-  group_by(Group, Age_Group) %>%
-  summarise(
-    n = n(),
-    mean_change = mean(Change_kPa),
-    se_change = sd(Change_kPa) / sqrt(n),
-    mean_pct_change = mean(Percent_Change),
-    sd_pct_change = sd(Percent_Change),
-    se_pct_change = sd_pct_change / sqrt(n),
-    .groups = "drop"
-  )
-
-p4 <- ggplot(
-  subgroup_age,
-  aes(x = Age_Group, y = mean_pct_change, color = Group)
-) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.5) +
-  geom_point(size = 4, position = position_dodge(0.4)) +
-  geom_errorbar(
-    aes(ymin = mean_pct_change - 1.96 * se_pct_change,
-        ymax = mean_pct_change + 1.96 * se_pct_change),
-    width = 0.2,
-    position = position_dodge(0.4),
-    linewidth = 0.8
-  ) +
-  geom_text(
-    aes(label = paste0("n=", n)),
-    position = position_dodge(0.4),
-    hjust = -0.5,
-    vjust = 0.5,
-    size = 3,
-    show.legend = FALSE
-  ) +
-  labs(
-    title = "Treatment Effect by Age Group",
-    subtitle = "Mean percent change in LSM Score from baseline (±95% CI)",
-    y = "Mean % Change from Baseline",
-    x = "Age Group",
-    color = "Treatment"
-  ) +
-  scale_color_manual(values = c("LIV.52 DS" = "#4472C4", "Placebo" = "#ED7D31")) +
-  theme_bw() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 13, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 10),
-    legend.position = "top",
-    legend.title = element_text(size = 10),
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank()
-  )
-
-# ============================================================================
-# 5. Subgroup Analysis - Treatment Effect by Baseline Severity (Point Plot)
-# ============================================================================
-
-subgroup_severity <- data %>%
-  group_by(Group, Baseline_Severity) %>%
-  summarise(
-    n = n(),
-    mean_change = mean(Change_kPa),
-    se_change = sd(Change_kPa) / sqrt(n),
-    mean_pct_change = mean(Percent_Change),
-    sd_pct_change = sd(Percent_Change),
-    se_pct_change = sd_pct_change / sqrt(n),
-    .groups = "drop"
-  ) %>%
+subgroup_severity <- calculate_subgroup_stats(data, "Baseline_Severity") %>%
   filter(!is.na(Baseline_Severity))
-
-p5 <- ggplot(
+p5 <- create_subgroup_plot(
   subgroup_severity,
-  aes(x = Baseline_Severity, y = mean_pct_change, color = Group)
+  "Baseline_Severity",
+  "Treatment Effect by Baseline Disease Severity",
+  "Baseline LSM Score Category"
 ) +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50", linewidth = 0.5) +
-  geom_point(size = 4, position = position_dodge(0.4)) +
-  geom_errorbar(
-    aes(ymin = mean_pct_change - 1.96 * se_pct_change,
-        ymax = mean_pct_change + 1.96 * se_pct_change),
-    width = 0.2,
-    position = position_dodge(0.4),
-    linewidth = 0.8
-  ) +
-  geom_text(
-    aes(label = paste0("n=", n)),
-    position = position_dodge(0.4),
-    hjust = -0.5,
-    vjust = 0.5,
-    size = 3,
-    show.legend = FALSE
-  ) +
-  labs(
-    title = "Treatment Effect by Baseline Disease Severity",
-    subtitle = "Mean percent change in LSM Score from baseline (±95% CI)",
-    y = "Mean % Change from Baseline",
-    x = "Baseline LSM Score Category",
-    color = "Treatment"
-  ) +
-  scale_color_manual(values = c("LIV.52 DS" = "#4472C4", "Placebo" = "#ED7D31")) +
-  theme_bw() +
-  theme(
-    plot.title = element_text(hjust = 0.5, size = 13, face = "bold"),
-    plot.subtitle = element_text(hjust = 0.5, size = 10),
-    legend.position = "top",
-    legend.title = element_text(size = 10),
-    panel.grid.minor = element_blank(),
-    panel.grid.major.x = element_blank(),
-    axis.text.x = element_text(size = 9)
-  )
+  theme(axis.text.x = element_text(size = 9))
 
 # ============================================================================
 # 6. Forest Plot - Treatment Effect Across All Subgroups
 # ============================================================================
 
-# Calculate treatment differences for each subgroup
+# Helper function to create forest data for a subgroup
+create_forest_subgroup <- function(data, subgroup_var, subgroup_name) {
+  if (subgroup_var == "Overall") {
+    data %>%
+      group_by(Group) %>%
+      summarise(mean_pct = mean(Percent_Change), n = n(), .groups = "drop") %>%
+      pivot_wider(names_from = Group, values_from = c(mean_pct, n)) %>%
+      mutate(Subgroup = "Overall", Category = "Overall")
+  } else {
+    data %>%
+      filter(!is.na(!!sym(subgroup_var))) %>%
+      group_by(!!sym(subgroup_var), Group) %>%
+      summarise(mean_pct = mean(Percent_Change), n = n(), .groups = "drop") %>%
+      pivot_wider(names_from = Group, values_from = c(mean_pct, n)) %>%
+      rename(Category = !!sym(subgroup_var)) %>%
+      mutate(Subgroup = subgroup_name)
+  }
+}
+
 forest_data <- bind_rows(
-  # Overall
-  data %>%
-    group_by(Group) %>%
-    summarise(mean_pct = mean(Percent_Change), n = n(), .groups = "drop") %>%
-    pivot_wider(names_from = Group, values_from = c(mean_pct, n)) %>%
-    mutate(Subgroup = "Overall", Category = "Overall"),
-  
-  # By Sex
-  data %>%
-    group_by(Sex, Group) %>%
-    summarise(mean_pct = mean(Percent_Change), n = n(), .groups = "drop") %>%
-    pivot_wider(names_from = Group, values_from = c(mean_pct, n)) %>%
-    rename(Category = Sex) %>%
-    mutate(Subgroup = "Sex"),
-  
-  # By Age Group
-  data %>%
-    filter(!is.na(Age_Group)) %>%
-    group_by(Age_Group, Group) %>%
-    summarise(mean_pct = mean(Percent_Change), n = n(), .groups = "drop") %>%
-    pivot_wider(names_from = Group, values_from = c(mean_pct, n)) %>%
-    rename(Category = Age_Group) %>%
-    mutate(Subgroup = "Age Group"),
-  
-  # By Baseline Severity
-  data %>%
-    filter(!is.na(Baseline_Severity)) %>%
-    group_by(Baseline_Severity, Group) %>%
-    summarise(mean_pct = mean(Percent_Change), n = n(), .groups = "drop") %>%
-    pivot_wider(names_from = Group, values_from = c(mean_pct, n)) %>%
-    rename(Category = Baseline_Severity) %>%
-    mutate(Subgroup = "Baseline Severity")
+  create_forest_subgroup(data, "Overall", "Overall"),
+  create_forest_subgroup(data, "Sex", "Sex"),
+  create_forest_subgroup(data, "Age_Group", "Age Group"),
+  create_forest_subgroup(data, "Baseline_Severity", "Baseline Severity")
 )
 
-# Rename columns to handle special characters
+# Clean column names and calculate differences
 colnames(forest_data) <- gsub("LIV\\.52 DS", "Liv52DS", colnames(forest_data))
 
-# Calculate treatment difference and confidence intervals
 forest_data <- forest_data %>%
   mutate(
     diff = mean_pct_Liv52DS - mean_pct_Placebo,
