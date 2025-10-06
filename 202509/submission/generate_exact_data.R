@@ -131,5 +131,5 @@ steatosis_dist <- full_data %>%
     mutate(percentage = round((count / sum(count)) * 100, 1))
 print(steatosis_dist)
 
-write.csv(full_data, "202509/LSM_Score_pub.csv", row.names = FALSE)
+write.csv(full_data, "202509/submission/LSM_Score_pub.csv", row.names = FALSE)
 cat("✓ Saved to LSM_Score_pub.csv\n")

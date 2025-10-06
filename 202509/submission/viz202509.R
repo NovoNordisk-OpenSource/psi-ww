@@ -77,7 +77,7 @@ create_subgroup_plot <- function(data, x_var, title, x_label) {
 # ============================================================================
 
 # Read the data
-data <- read.csv("202509/LSM_Score_pub.csv")
+data <- read.csv("202509/submission/LSM_Score_pub.csv")
 
 # Calculate derived variables
 data <- data %>%
@@ -203,11 +203,11 @@ p2 <- ggplot(steatosis_summary, aes(x = Steatosis, y = percentage, fill = Steato
 
 subgroup_sex <- calculate_subgroup_stats(data, "Sex")
 p3 <- create_subgroup_plot(subgroup_sex, "Sex", "Treatment Effect by Sex", "Sex")
-ggsave("202509/p3_treatment_effect_by_sex.png", p3, width = 10, height = 6, dpi = 300)
+ggsave("202509/submission/p3_treatment_effect_by_sex.png", p3, width = 10, height = 6, dpi = 300)
 
 subgroup_age <- calculate_subgroup_stats(data, "Age_Group")
 p4 <- create_subgroup_plot(subgroup_age, "Age_Group", "Treatment Effect by Age Group", "Age Group")
-ggsave("202509/p4_treatment_effect_by_age.png", p4, width = 10, height = 6, dpi = 300)
+ggsave("202509/submission/p4_treatment_effect_by_age.png", p4, width = 10, height = 6, dpi = 300)
 
 subgroup_severity <- calculate_subgroup_stats(data, "Baseline_Severity") %>%
   filter(!is.na(Baseline_Severity))
@@ -218,7 +218,7 @@ p5 <- create_subgroup_plot(
   "Baseline LSM Score Category"
 ) +
   theme(axis.text.x = element_text(size = 9))
-ggsave("202509/p5_treatment_effect_by_severity.png", p5, width = 10, height = 6, dpi = 300)
+ggsave("202509/submission/p5_treatment_effect_by_severity.png", p5, width = 10, height = 6, dpi = 300)
 
 # ============================================================================
 # 6. Forest Plot - Treatment Effect Across All Subgroups
@@ -287,7 +287,7 @@ p6 <- ggplot(forest_data, aes(y = fct_reorder(label, order), x = diff)) +
   ) +
   xlim(-35, 10)
 
-ggsave("202509/p6_forest_plot_subgroups.png", p6, width = 10, height = 6, dpi = 300)
+ggsave("202509/submission/p6_forest_plot_subgroups.png", p6, width = 10, height = 6, dpi = 300)
 
 # ============================================================================
 # Display all plots
